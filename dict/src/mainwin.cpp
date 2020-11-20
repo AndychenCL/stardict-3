@@ -25,7 +25,7 @@
 #include <algorithm>
 
 #ifdef _WIN32
-#define VERSION "4.0.0"
+#define VERSION "3.0.7"
 #  include <gdk/gdkwin32.h>
 #endif
 
@@ -110,7 +110,7 @@ void TopWin::Create(GtkWidget *vbox)
 	WordCombo = gtk_combo_box_new_with_model_and_entry(GTK_TREE_MODEL(list_store));
 	gtk_combo_box_set_entry_text_column(GTK_COMBO_BOX(WordCombo), 0);
 	g_object_unref (G_OBJECT(list_store));
-	gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(WordCombo), FALSE);
+	gtk_widget_set_focus_on_click(GTK_WIDGET(WordCombo), FALSE);
 	gtk_container_forall(GTK_CONTAINER(WordCombo), unfocus_combo_arrow, this);
 	gtk_widget_set_size_request(WordCombo,60,-1);
 	gtk_widget_show(WordCombo);
@@ -614,6 +614,8 @@ void TopWin::on_main_menu_about_activate(GtkMenuItem *menuitem, TopWin *oTopWin)
 		"Hu Zheng <huzheng001@gmail.com>",
 		"Sergey <kubtek@gmail.com>",
 		"Evgeniy <dushistov@mail.ru>",
+		"Alex Murygin <murygin@aitoc.com>",
+		"Tao Wang <dancefire@gmail.com>",
 		"Opera Wang <wangvisual@sohu.com>",
 		"Ma Su'an <msa@wri.com.cn>",
 		NULL
@@ -631,7 +633,7 @@ void TopWin::on_main_menu_about_activate(GtkMenuItem *menuitem, TopWin *oTopWin)
 			      "version", VERSION,
 			      "website", "http://stardict-4.sourceforge.net",
 			      "comments", _("StarDict is an international dictionary for GNOME."),
-			      "copyright", "Copyright \xc2\xa9 1999 by Ma Su'an\n" "Copyright \xc2\xa9 2002 by Opera Wang\n" "Copyright \xc2\xa9 2003-2004 by Hu Zheng\n" "Copyright \xc2\xa9 2005-2006 by Hu Zheng, Evgeniy\n" "Copyright \xc2\xa9 2007-2011 by Hu Zheng, Sergey\n" "Copyright \xc2\xa9 2012-2017 by Hu Zheng",
+			      "copyright", "Copyright \xc2\xa9 1999 by Ma Su'an\n" "Copyright \xc2\xa9 2002 by Opera Wang\n" "Copyright \xc2\xa9 2003-2004 by Hu Zheng\n" "Copyright \xc2\xa9 2005-2006 by Hu Zheng, Evgeniy\n" "Copyright \xc2\xa9 2007-2011 by Hu Zheng, Sergey\n" "Copyright \xc2\xa9 2012-2020 by Hu Zheng",
 			      "authors", (const char **)authors,
 			      "documenters", (const char **)documenters,
 			      "translator-credits", strcmp (translator_credits, "translator_credits") != 0 ? translator_credits : NULL,
@@ -1435,6 +1437,87 @@ void ResultWin::on_selection_changed(GtkTreeSelection *selection, ResultWin *oRe
 }
 
 /**************************************************/
+void HistoryWin::Create(GtkWidget *notebook)
+{
+
+	GtkListStore *model = gpAppFrame->oTopWin.get_wordcombo_model();
+
+	treeview = gtk_tree_view_new_with_model (GTK_TREE_MODEL(model));
+	gtk_widget_show(treeview);
+	g_object_unref (model);
+	gtk_tree_view_set_headers_visible (GTK_TREE_VIEW (treeview), FALSE);
+	GtkCellRenderer *renderer = gtk_cell_renderer_text_new ();
+	GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes (
+		"word", renderer, "text", 0, NULL);
+	gtk_tree_view_append_column (GTK_TREE_VIEW (treeview), column);
+	g_signal_connect (G_OBJECT (treeview), "key_press_event",
+		G_CALLBACK (on_key_pressed), this);
+
+	GtkTreeSelection *selection = gtk_tree_view_get_selection (
+		GTK_TREE_VIEW (treeview));
+	g_signal_connect (G_OBJECT (selection), "changed",
+		G_CALLBACK (on_selection_changed), this);
+
+	GtkWidget *scrolledwindow = gtk_scrolled_window_new (NULL, NULL);
+	gtk_widget_show(scrolledwindow);
+	gtk_scrolled_window_set_shadow_type (
+		GTK_SCROLLED_WINDOW (scrolledwindow), GTK_SHADOW_ETCHED_IN);
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolledwindow),
+		GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+	gtk_container_add(GTK_CONTAINER(scrolledwindow),treeview);
+	gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scrolledwindow, NULL);
+}
+
+gboolean HistoryWin::on_key_pressed(GtkWidget *widget, GdkEventKey *event,
+		HistoryWin *oHistoryWin)
+{
+	if (event->type==GDK_KEY_PRESS &&
+			(event->keyval==GDK_KEY_Delete || event->keyval==GDK_KEY_KP_Delete)) {
+		GtkTreeModel *model;
+		GtkTreeIter iter;
+		GtkTreeSelection *selection = gtk_tree_view_get_selection (
+				GTK_TREE_VIEW (oHistoryWin->treeview));
+		if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
+			gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
+			gtk_tree_selection_select_iter(selection, &iter);
+			// Select last row
+			if (!gtk_tree_selection_get_selected(selection, &model, &iter)) {
+				gint total = gtk_tree_model_iter_n_children(model, NULL);
+				gtk_tree_model_iter_nth_child (model, &iter, NULL, total-1);
+				gtk_tree_selection_select_iter(selection, &iter);
+			}
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+void HistoryWin::on_selection_changed(GtkTreeSelection *selection, HistoryWin *oHistoryWin)
+{
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+
+	if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
+		gchar *word;
+		gtk_tree_model_get (model, &iter, 0, &word, -1);
+		gpAppFrame->SimpleLookupToTextWin(word, NULL);
+		bool enable_netdict = conf->get_bool_at(
+			"network/enable_netdict");
+		if (enable_netdict) {
+			STARDICT::Cmd *c = new STARDICT::Cmd(
+				STARDICT::CMD_DEFINE, word);
+			if (!gpAppFrame->oStarDictClient.try_cache(c)) {
+				gpAppFrame->waiting_mainwin_lookupcmd_seq = c->seq;
+				gpAppFrame->oStarDictClient.send_commands(1, c);
+			}
+		}
+		gpAppFrame->LookupNetDict(word, true);
+		g_free(word);
+	}
+}
+
+/**************************************************/
 LeftWin::LeftWin()
 {
 	choosegroup_menu = NULL;
@@ -1488,6 +1571,16 @@ void LeftWin::Create(GtkWidget *hbox, bool has_treedict)
 	gtk_widget_set_tooltip_text(translate_button,_("Full-Text Translation"));
 	g_signal_connect(G_OBJECT(translate_button),"toggled", G_CALLBACK(on_translate_button_toggled), this);
 
+	GtkWidget *history_button = gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(wazard_button));
+	gtk_widget_set_can_focus (history_button, FALSE);
+	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(history_button), false);
+	gtk_box_pack_start(GTK_BOX(vbox),history_button, false, false, 0);
+	image = gtk_image_new_from_pixbuf(get_impl(gpAppFrame->oAppSkin.index_history));
+	gtk_container_add (GTK_CONTAINER (history_button), image);
+	gtk_widget_show_all(history_button);
+	gtk_widget_set_tooltip_text(history_button,_("History"));
+	g_signal_connect(G_OBJECT(history_button),"toggled", G_CALLBACK(on_history_button_toggled), this);
+	
 	if (has_treedict) {
 		GtkWidget *appendix_button = gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(translate_button));
 		gtk_widget_set_can_focus (appendix_button, FALSE);
@@ -1544,6 +1637,14 @@ void LeftWin::on_result_button_toggled(GtkToggleButton *button, LeftWin *oLeftWi
 	if (gtk_toggle_button_get_active(button)) {
 		gtk_notebook_set_current_page(GTK_NOTEBOOK(gpAppFrame->oMidWin.notebook), 0);
 		gtk_notebook_set_current_page(GTK_NOTEBOOK(gpAppFrame->oMidWin.oIndexWin.notebook), 1);
+	}
+}
+
+void LeftWin::on_history_button_toggled(GtkToggleButton *button, LeftWin *oLeftWin)
+{
+	if (gtk_toggle_button_get_active(button)) {
+		gtk_notebook_set_current_page(GTK_NOTEBOOK(gpAppFrame->oMidWin.notebook), 0);
+		gtk_notebook_set_current_page(GTK_NOTEBOOK(gpAppFrame->oMidWin.oIndexWin.notebook), 2);
 	}
 }
 
@@ -1653,6 +1754,7 @@ bool IndexWin::Create(GtkWidget *hpaned)
 	gtk_notebook_set_show_border(GTK_NOTEBOOK(notebook),FALSE);
 	oListWin.Create(notebook);
 	oResultWin.Create(notebook);
+	oHistoryWin.Create(notebook);
 
 	return oTreeWin.Create(notebook);
 }
@@ -2567,7 +2669,7 @@ void TransWin::Create(GtkWidget *notebook)
 	renderer = gtk_cell_renderer_text_new ();
 	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (engine_combobox), renderer, TRUE);
 	gtk_cell_layout_set_attributes (GTK_CELL_LAYOUT (engine_combobox), renderer, "text", 0, NULL);
-	gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(engine_combobox), FALSE);
+	gtk_widget_set_focus_on_click(GTK_WIDGET(engine_combobox), FALSE);
 	gtk_box_pack_start(GTK_BOX(hbox), engine_combobox, false, false, 0);
 	label = gtk_label_new(":");
 	gtk_box_pack_start(GTK_BOX(hbox), label, false, false, 0);
@@ -2575,7 +2677,7 @@ void TransWin::Create(GtkWidget *notebook)
 	renderer = gtk_cell_renderer_text_new ();
 	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (fromlang_combobox), renderer, TRUE);
 	gtk_cell_layout_set_attributes (GTK_CELL_LAYOUT (fromlang_combobox), renderer, "text", 0, NULL);
-	gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(fromlang_combobox), FALSE);
+	gtk_widget_set_focus_on_click(GTK_WIDGET(fromlang_combobox), FALSE);
 	gtk_box_pack_start(GTK_BOX(hbox), fromlang_combobox, false, false, 0);
 	label = gtk_label_new(_("To"));
 	gtk_box_pack_start(GTK_BOX(hbox), label, false, false, 0);
@@ -2583,7 +2685,7 @@ void TransWin::Create(GtkWidget *notebook)
 	renderer = gtk_cell_renderer_text_new ();
 	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (tolang_combobox), renderer, TRUE);
 	gtk_cell_layout_set_attributes (GTK_CELL_LAYOUT (tolang_combobox), renderer, "text", 0, NULL);
-	gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(tolang_combobox), FALSE);
+	gtk_widget_set_focus_on_click(GTK_WIDGET(tolang_combobox), FALSE);
 	gtk_box_pack_start(GTK_BOX(hbox), tolang_combobox, false, false, 0);
 	SetEngine(conf->get_int_at("translate/engine"));
 	SetFromLang(true, conf->get_int_at("translate/fromlang"));

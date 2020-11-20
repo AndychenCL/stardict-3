@@ -2,9 +2,9 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([StarDict], 4.0.0, [http://stardict-4.sourceforge.net])
+AC_INIT([StarDict], 3.0.7, [http://stardict-4.sourceforge.net])
 AC_CONFIG_AUX_DIR([.])
-AM_INIT_AUTOMAKE([1.9 tar-ustar dist-bzip2])
+AM_INIT_AUTOMAKE([1.9 tar-ustar dist-xz])
 
 AC_CONFIG_MACRO_DIR([m4])
 

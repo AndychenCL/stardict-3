@@ -646,9 +646,10 @@ void rsad(int e[RSA_MAX],int g[RSA_MAX],int *d)
 	 for(i=0;i<RSA_MAX;i++)
 				k[i]=w[i]=0;
 		divt(n1,n2,k,w);/*/k=n1/n2;*/
-	 for(i=0;i<RSA_MAX;i++)
+	 for(i=0;i<RSA_MAX;i++) {
 		temp[i]=0;
-		mul(k,n2,temp);/*/temp=k*n2;*/
+	 }
+	 mul(k,n2,temp);/*/temp=k*n2;*/
     for(i=0;i<RSA_MAX;i++)
 		r[i]=0;
         sub(n1,temp,r);
@@ -1031,6 +1032,16 @@ void rsa_decrypt(std::vector<unsigned char> &src, std::vector<unsigned char> &de
 }
 #endif
 
+#ifdef SERVER_EDITION
+void buffer_to_vector(unsigned char *buffer, size_t buffer_len, std::vector<unsigned char> &v)
+{
+	v.clear();
+	for (size_t i = 0; i< buffer_len; i++) {
+		v.push_back(buffer[i]);
+	}
+}
+#endif
+
 #ifdef CLIENT_EDITION
 void string_to_vector(std::string &str, std::vector<unsigned char> &v)
 {
@@ -1042,7 +1053,6 @@ void string_to_vector(std::string &str, std::vector<unsigned char> &v)
 }
 #endif
 
-#ifdef SERVER_EDITION
 void vector_to_string(std::vector<unsigned char> &v, std::string &str)
 {
 	str.clear();
@@ -1051,5 +1061,4 @@ void vector_to_string(std::vector<unsigned char> &v, std::string &str)
 		str += v[i];
 	}
 }
-#endif
 

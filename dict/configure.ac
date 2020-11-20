@@ -2,10 +2,10 @@ dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.52)
 
-AC_INIT([StarDict], 4.0.0, [http://stardict-4.sourceforge.net])
+AC_INIT([StarDict], 3.0.7, [http://stardict-4.sourceforge.net])
 AC_CONFIG_SRCDIR(src/stardict.cpp)
 AC_CONFIG_AUX_DIR([.])
-AM_INIT_AUTOMAKE([1.9 tar-ustar dist-bzip2])
+AM_INIT_AUTOMAKE([1.9 tar-ustar dist-xz])
 
 AC_CONFIG_HEADERS([config.h])
 AH_BOTTOM([#include <../lib/config-custom.h>])
@@ -45,21 +45,34 @@ dnl ================================================================
 dnl spell plugin checks: enchant.
 dnl ================================================================
 
-ENCHANT_REQUIRED=1.2.0
+ENCHANT1_REQUIRED=1.2.0
+ENCHANT2_REQUIRED=2.2.3
 AC_ARG_ENABLE([spell],
 	AS_HELP_STRING([--disable-spell],[Disable spell plugin (default: enabled)]),
 	[enable_enchant=$enableval],
 	[enable_enchant=yes])
 
 if test "x$enable_enchant" = "xyes" ; then
-	PKG_CHECK_MODULES(ENCHANT, enchant >= $ENCHANT_REQUIRED, \
-			have_enchant=yes, have_enchant=no)
-	if test "x$have_enchant" = "xyes"; then
-		ENCHANT_CFLAGS="${ENCHANT_CFLAGS}"
-		ENCHANT_LIBS="${ENCHANT_LIBS}"
-		SPELL_PLUGIN_DIR="stardict-spell-plugin"
+	PKG_CHECK_MODULES([ENCHANT2], enchant-2 >= $ENCHANT2_REQUIRED, \
+			have_enchant2=yes, have_enchant2=no)
+	PKG_CHECK_MODULES([ENCHANT1], enchant >= $ENCHANT1_REQUIRED, \
+			have_enchant1=yes, have_enchant1=no)
+	if test "x$have_enchant2" = "xyes"; then
+		if test "x$have_enchant1" = "xyes"; then
+			AC_MSG_ERROR([You have both Enchant 1.x and Enchant 2.x installed. This is not supported.])
+		else
+			ENCHANT_CFLAGS="${ENCHANT2_CFLAGS}"
+			ENCHANT_LIBS="${ENCHANT2_LIBS}"
+			SPELL_PLUGIN_DIR="stardict-spell-plugin"
+		fi
 	else
-		AC_MSG_ERROR([Enchant library not found or too old. Use --disable-spell to build without spell plugin.])
+		if test "x$have_enchant1" = "xyes"; then
+			ENCHANT_CFLAGS="${ENCHANT1_CFLAGS}"
+			ENCHANT_LIBS="${ENCHANT1_LIBS}"
+			SPELL_PLUGIN_DIR="stardict-spell-plugin"
+		else
+			AC_MSG_ERROR([Enchant library not found or too old. Use --disable-spell to build without spell plugin.])
+		fi
 	fi
 else
 	ENCHANT_CFLAGS=
@@ -196,6 +209,38 @@ AC_SUBST(ESPEAK_LIBS)
 AC_SUBST(ESPEAK_PLUGIN_DIR)
 
 dnl ================================================================
+dnl espeak-ng tts plugin checks.
+dnl ================================================================
+
+AC_ARG_ENABLE([espeak_ng],
+	AS_HELP_STRING([--disable-espeak-ng],[Disable espeak-ng tts plugin (default: enabled)]),
+	[enable_espeak_ng=$enableval],
+	[enable_espeak_ng=yes])
+
+if test "x$enable_espeak_ng" = "xyes" ; then
+	AC_CHECK_HEADERS([espeak-ng/speak_lib.h],
+		[
+			ESPEAK_NG_LIBS="-lespeak-ng"
+			ESPEAK_NG_CFLAGS=
+			ESPEAK_NG_PLUGIN_DIR="stardict-espeak-ng-tts-plugin"
+		],
+		[
+			AC_MSG_ERROR([Espeak-ng library not found. Use --disable-espeak-ng to build without espeak-ng plugin.])
+		],
+		[]
+	)
+else
+	ESPEAK_NG_CFLAGS=
+	ESPEAK_NG_LIBS=
+	ESPEAK_NG_PLUGIN_DIR=
+fi
+
+AC_SUBST(ESPEAK_NG_CFLAGS)
+AC_SUBST(ESPEAK_NG_LIBS)
+AC_SUBST(ESPEAK_NG_PLUGIN_DIR)
+
+
+dnl ================================================================
 dnl other plugin checks.
 dnl ================================================================
 
@@ -223,16 +268,16 @@ fi
 AC_SUBST(YOUDAODICT_PLUGIN_DIR)
 
 
-AC_ARG_ENABLE([advertisement],
-	AS_HELP_STRING([--disable-advertisement],[Disable advertisement virtual dict plugin (default: enabled)]),
-	[enable_advertisement=$enableval],
-	[enable_advertisement=yes])
-if test "x$enable_advertisement" = "xyes" ; then
-	ADVERTISEMENT_PLUGIN_DIR="stardict-advertisement-plugin"
+AC_ARG_ENABLE([customdict],
+	AS_HELP_STRING([--disable-customdict],[Disable customdict virtual dict plugin (default: enabled)]),
+	[enable_customdict=$enableval],
+	[enable_customdict=yes])
+if test "x$enable_customdict" = "xyes" ; then
+	CUSTOMDICT_PLUGIN_DIR="stardict-customdict-plugin"
 else
-	ADVERTISEMENT_PLUGIN_DIR=
+	CUSTOMDICT_PLUGIN_DIR=
 fi
-AC_SUBST(ADVERTISEMENT_PLUGIN_DIR)
+AC_SUBST(CUSTOMDICT_PLUGIN_DIR)
 
 AC_ARG_ENABLE([man],
 	AS_HELP_STRING([--disable-man],[Disable man virtual dict plugin (default: enabled)]),
@@ -451,7 +496,7 @@ STARDICT_CFLAGS="-Wall $STARDICT_CFLAGS"
 dnl
 dnl Start of zlib checks
 dnl
-AC_CHECK_LIB(z,zlibVersion,STARDICT_LIBS="$STARDICT_LIBS -lz",[AC_MSG_ERROR([zlib not found, or gcc-c++ not installed])])
+AC_CHECK_LIB(z,zlibVersion,STARDICT_LIBS="$STARDICT_LIBS -lz",[AC_MSG_ERROR([zlib not found, or gcc g++ not installed])])
 # For the first AC_CHECK_LIB, if failed, it may because of compiler didn't installed. So add this warning for the first AC_CHECK_LIB macro.
 
 
@@ -561,8 +606,8 @@ src/win32/acrobat/win32/Makefile
 src/win32/nsis/Makefile
 src/win32/PortableApps.com/Makefile
 stardict-plugins/Makefile
-stardict-plugins/stardict-advertisement-plugin/Makefile
-stardict-plugins/stardict-advertisement-plugin/data/Makefile
+stardict-plugins/stardict-customdict-plugin/Makefile
+stardict-plugins/stardict-customdict-plugin/data/Makefile
 stardict-plugins/stardict-man-plugin/Makefile
 stardict-plugins/stardict-info-plugin/Makefile
 stardict-plugins/stardict-fortune-plugin/Makefile
@@ -576,6 +621,7 @@ stardict-plugins/stardict-gucharmap-plugin/Makefile
 stardict-plugins/stardict-festival-tts-plugin/Makefile
 stardict-plugins/stardict-flite-tts-plugin/Makefile
 stardict-plugins/stardict-espeak-tts-plugin/Makefile
+stardict-plugins/stardict-espeak-ng-tts-plugin/Makefile
 stardict-plugins/stardict-wiki-parsedata-plugin/Makefile
 stardict-plugins/stardict-powerword-parsedata-plugin/Makefile
 stardict-plugins/stardict-xdxf-parsedata-plugin/Makefile

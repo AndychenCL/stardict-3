@@ -1161,8 +1161,8 @@ void PrefsDlg::on_setup_network_account_button_clicked(GtkWidget *widget, PrefsD
         struct MD5Context ctx;
         unsigned char digest[16];
         MD5Init(&ctx);
-        MD5Update(&ctx, (const unsigned char*)"StarDict", 8); //StarDict-Protocol 0.4, add md5 salt.
         MD5Update(&ctx, (const unsigned char*)passwd, strlen(passwd));
+        MD5Update(&ctx, (const unsigned char*)"StarDict", 8); //StarDict-Protocol 0.4, add md5 salt.
         MD5Final(digest, &ctx );
         char hex[33];
         for (int i = 0; i < 16; i++)
@@ -1287,8 +1287,8 @@ void PrefsDlg::on_setup_network_changepassword_button_clicked(GtkWidget *widget,
         	struct MD5Context ctx;
         	unsigned char digest[16];
         	MD5Init(&ctx);
-        	MD5Update(&ctx, (const unsigned char*)"StarDict", 8); //StarDict-Protocol 0.4, add md5 salt.
         	MD5Update(&ctx, (const unsigned char*)corrent_password, strlen(corrent_password));
+        	MD5Update(&ctx, (const unsigned char*)"StarDict", 8); //StarDict-Protocol 0.4, add md5 salt.
         	MD5Final(digest, &ctx );
         	for (int i = 0; i < 16; i++)
 			sprintf( hex+2*i, "%02x", digest[i] );
@@ -1313,8 +1313,8 @@ void PrefsDlg::on_setup_network_changepassword_button_clicked(GtkWidget *widget,
         struct MD5Context ctx;
         unsigned char digest[16];
         MD5Init(&ctx);
-        MD5Update(&ctx, (const unsigned char*)"StarDict", 8); //StarDict-Protocol 0.4, add md5 salt.
         MD5Update(&ctx, (const unsigned char*)new_password, strlen(new_password));
+        MD5Update(&ctx, (const unsigned char*)"StarDict", 8); //StarDict-Protocol 0.4, add md5 salt.
         MD5Final(digest, &ctx );
         char hex2[33];
         for (int i = 0; i < 16; i++)
@@ -1417,8 +1417,8 @@ void PrefsDlg::on_setup_network_register_button_clicked(GtkWidget *widget, Prefs
         struct MD5Context ctx;
         unsigned char digest[16];
         MD5Init(&ctx);
-        MD5Update(&ctx, (const unsigned char*)"StarDict", 8); //StarDict-Protocol 0.4, add md5 salt.
         MD5Update(&ctx, (const unsigned char*)passwd, strlen(passwd));
+        MD5Update(&ctx, (const unsigned char*)"StarDict", 8); //StarDict-Protocol 0.4, add md5 salt.
         MD5Final(digest, &ctx );
         char hex[33];
         for (int i = 0; i < 16; i++)
@@ -1465,9 +1465,11 @@ void PrefsDlg::setup_network_netdict()
     gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1, GTK_FILL, GTK_FILL, 0, 0);
 	GtkWidget *comboboxentry = gtk_combo_box_text_new_with_entry();
 	gtk_table_attach(GTK_TABLE(table), comboboxentry, 1, 2, 0, 1, GTK_FILL, GTK_FILL, 0, 0);
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(comboboxentry), "dict.stardict.net");
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(comboboxentry), "dict.stardict.cc");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(comboboxentry), "dict2.stardict.net");
 	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(comboboxentry), "dict.stardict.me");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(comboboxentry), "dict.stardict.cc");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(comboboxentry), "dict.stardict.org");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(comboboxentry), "dict.stardict.cn");
 	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(comboboxentry), "dict.stardict.site");
 	eStarDictServer=GTK_ENTRY(gtk_bin_get_child(GTK_BIN(comboboxentry)));
 	const std::string &server= conf->get_string_at("network/server");
@@ -2598,14 +2600,14 @@ bool PrefsDlg::ShowModal()
 		if (ch && ch[0])
 			server = ch;
 		else
-			server = _("dict.stardict.net");
+			server = _("dict2.stardict.net");
 		conf->set_string_at("network/server", server);
 		int port;
 		ch = gtk_entry_get_text(eStarDictServerPort);
 		if (ch && ch[0])
 			port = atoi(ch);
 		else
-			port = 2628;
+			port = 2629;
 		conf->set_int_at("network/port", port);
 		gpAppFrame->oStarDictClient.set_server(server, port);
 
